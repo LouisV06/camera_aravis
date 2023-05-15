@@ -105,7 +105,8 @@ void CameraAravisNodelet::onInit()
   if (pnh.getParam("channel_names", stream_channel_args)) {
     parseStringArgs(stream_channel_args, stream_names_);
   } else {
-    stream_names_ = { "" };
+    //nom des futures channels
+    stream_names_ = { "0","1","2","3","4","5","6","7","8","9" };
   }
 
   std::string pixel_format_args;
@@ -150,7 +151,7 @@ void CameraAravisNodelet::onInit()
     }
     ros::Duration(1.0).sleep();
   }
-
+  
   p_device_ = arv_camera_get_device(p_camera_);
   ROS_INFO("Opened: %s-%s", arv_camera_get_vendor_name(p_camera_),
            arv_device_get_string_feature_value(p_device_, "DeviceSerialNumber"));
@@ -191,20 +192,23 @@ void CameraAravisNodelet::onInit()
     p_camera_info_managers_.push_back(NULL);
     p_camera_info_node_handles_.push_back(NULL);
     camera_infos_.push_back(sensor_msgs::CameraInfoPtr());
-    cam_pubs_.push_back(image_transport::CameraPublisher());
-    extended_camera_info_pubs_.push_back(ros::Publisher());
   }
+  //création de 10 publishers
+  for(int i = 0; i < 10; i++) {
+    extended_camera_info_pubs_.push_back(ros::Publisher());
+    cam_pubs_.push_back(image_transport::CameraPublisher());
+      }
 
   // Get parameter bounds.
   arv_camera_get_exposure_time_bounds(p_camera_, &config_min_.ExposureTime, &config_max_.ExposureTime);
   arv_camera_get_gain_bounds(p_camera_, &config_min_.Gain, &config_max_.Gain);
   for(int i = 0; i < num_streams_; i++) {
-    arv_camera_gv_select_stream_channel(p_camera_,i);
+    //arv_camera_gv_select_stream_channel(p_camera_,i);
     arv_camera_get_sensor_size(p_camera_, &sensors_[i]->width, &sensors_[i]->height);
   }
-  arv_camera_get_width_bounds(p_camera_, &roi_.width_min, &roi_.width_max);
-  arv_camera_get_height_bounds(p_camera_, &roi_.height_min, &roi_.height_max);
-  arv_camera_get_frame_rate_bounds(p_camera_, &config_min_.AcquisitionFrameRate, &config_max_.AcquisitionFrameRate);
+    arv_camera_get_width_bounds(p_camera_, &roi_.width_min, &roi_.width_max);
+    arv_camera_get_height_bounds(p_camera_, &roi_.height_min, &roi_.height_max);
+    arv_camera_get_frame_rate_bounds(p_camera_, &config_min_.AcquisitionFrameRate, &config_max_.AcquisitionFrameRate);
   if (implemented_features_["FocusPos"])
   {
     gint64 focus_min64, focus_max64;
@@ -219,7 +223,7 @@ void CameraAravisNodelet::onInit()
   }
 
   for(int i = 0; i < num_streams_; i++) {
-    arv_camera_gv_select_stream_channel(p_camera_,i);
+    //arv_camera_gv_select_stream_channel(p_camera_,i);
 
     // Initial camera settings.
     if (implemented_features_["ExposureTime"])
@@ -268,7 +272,7 @@ void CameraAravisNodelet::onInit()
 
   // get pixel format name and translate into corresponding ROS name
   for(int i = 0; i < num_streams_; i++) {
-    arv_camera_gv_select_stream_channel(p_camera_,i);
+    //arv_camera_gv_select_stream_channel(p_camera_,i);
     std::string source_selector = "Source" + std::to_string(i);
     arv_device_set_string_feature_value(p_device_, "SourceSelector", source_selector.c_str());
     arv_device_set_string_feature_value(p_device_, "PixelFormat", pixel_formats[i].c_str());
@@ -348,7 +352,7 @@ void CameraAravisNodelet::onInit()
     }
   }
 
-  for(int i = 0; i < num_streams_; i++) {
+  for(int i = 0; i < 10; i++) {
     // Start the camerainfo manager.
     std::string camera_info_frame_id = config_.frame_id;
     if(!stream_names_[i].empty())
@@ -356,18 +360,18 @@ void CameraAravisNodelet::onInit()
 
     // Use separate node handles for CameraInfoManagers when using a Multisource Camera
     if(!stream_names_[i].empty()) {
-      p_camera_info_node_handles_[i].reset(new ros::NodeHandle(pnh, stream_names_[i]));
-      p_camera_info_managers_[i].reset(new camera_info_manager::CameraInfoManager(*p_camera_info_node_handles_[i], camera_info_frame_id, calib_urls[i]));
+      p_camera_info_node_handles_[0].reset(new ros::NodeHandle(pnh, stream_names_[i]));
+      p_camera_info_managers_[0].reset(new camera_info_manager::CameraInfoManager(*p_camera_info_node_handles_[0], camera_info_frame_id, calib_urls[0]));
     } else {
-      p_camera_info_managers_[i].reset(new camera_info_manager::CameraInfoManager(pnh, camera_info_frame_id, calib_urls[i]));
+      p_camera_info_managers_[0].reset(new camera_info_manager::CameraInfoManager(pnh, camera_info_frame_id, calib_urls[0]));
     }
 
 
     ROS_INFO("Reset %s Camera Info Manager", stream_names_[i].c_str());
-    ROS_INFO("%s Calib URL: %s", stream_names_[i].c_str(), calib_urls[i].c_str());
+    ROS_INFO("%s Calib URL: %s", stream_names_[i].c_str(), calib_urls[0].c_str());
 
     // publish an ExtendedCameraInfo message
-    setExtendedCameraInfo(stream_names_[i], i);
+    setExtendedCameraInfo(stream_names_[i], i); 
   }
 
   // update the reconfigure config
@@ -449,16 +453,16 @@ void CameraAravisNodelet::spawnStream()
 
   for(int i = 0; i < num_streams_; i++) {
     while (spawning_) {
-      arv_camera_gv_select_stream_channel(p_camera_, i);
+      //arv_camera_gv_select_stream_channel(p_camera_, i);
       p_streams_[i] = arv_camera_create_stream(p_camera_, NULL, NULL);
 
       if (p_streams_[i])
       {
         // Load up some buffers.
-        arv_camera_gv_select_stream_channel(p_camera_, i);
+        //arv_camera_gv_select_stream_channel(p_camera_, i);
         const gint n_bytes_payload_stream_ = arv_camera_get_payload(p_camera_);
 
-        p_buffer_pools_[i].reset(new CameraBufferPool(p_streams_[i], n_bytes_payload_stream_, 10));
+        p_buffer_pools_[i].reset(new CameraBufferPool(p_streams_[i], n_bytes_payload_stream_, 20));
 
         if (arv_camera_is_gv_device(p_camera_))
         {
@@ -484,20 +488,21 @@ void CameraAravisNodelet::spawnStream()
   ros::SubscriberStatusCallback info_cb = [this](const ros::SingleSubscriberPublisher &ssp)
   { this->rosConnectCallback();};
 
-  for(int i = 0; i < num_streams_; i++) {
+  for(int i = 0; i < 10; i++) {
     image_transport::ImageTransport *p_transport;
     // Set up image_raw
     std::string topic_name = this->getName();
     p_transport = new image_transport::ImageTransport(pnh);
-    if(num_streams_ != 1 || !stream_names_[i].empty()) {
+    std::string c = std::to_string(i);
+    /*if(num_streams_ != 1 || !stream_names_[i].empty()) {
       topic_name += "/" + stream_names_[i];
-    }
-
+    }*/
+    topic_name += "/bande" + c;
     cam_pubs_[i] = p_transport->advertiseCamera(
       ros::names::remap(topic_name + "/image_raw"),
       1, image_cb, image_cb, info_cb, info_cb);
   }
-
+  
   // Connect signals with callbacks.
   for(int i = 0; i < num_streams_; i++) {
     StreamIdData* data = new StreamIdData();
@@ -854,18 +859,20 @@ void CameraAravisNodelet::setAutoSlave(bool value)
 }
 
 void CameraAravisNodelet::setExtendedCameraInfo(std::string channel_name, size_t stream_id)
-{
+{ 
   if (pub_ext_camera_info_)
   {
     if (channel_name.empty()) {
       extended_camera_info_pubs_[stream_id]  = getNodeHandle().advertise<ExtendedCameraInfo>(ros::names::remap("extended_camera_info"), 1, true);
-    } else {
-      extended_camera_info_pubs_[stream_id]  = getNodeHandle().advertise<ExtendedCameraInfo>(ros::names::remap(channel_name + "/extended_camera_info"), 1, true);
+    } 
+    else {
+      extended_camera_info_pubs_[stream_id]  = getNodeHandle().advertise<ExtendedCameraInfo>(ros::names::remap("extended_camera_info"), 1, true);
     }
   }
   else
   {
-    extended_camera_info_pubs_[stream_id].shutdown();
+    extended_camera_info_pubs_[stream_id]  = getNodeHandle().advertise<ExtendedCameraInfo>(ros::names::remap("extended_camera_info"), 1, true);
+    //extended_camera_info_pubs_[stream_id].shutdown();
   }
 }
 
@@ -898,7 +905,7 @@ void CameraAravisNodelet::tuneGvStream(ArvGvStream *p_stream)
 }
 
 void CameraAravisNodelet::rosReconfigureCallback(Config &config, uint32_t level)
-{
+{ 
   reconfigure_mutex_.lock();
   std::string tf_prefix = tf::getPrefixParam(getNodeHandle());
   ROS_DEBUG_STREAM("tf_prefix: " << tf_prefix);
@@ -957,7 +964,7 @@ void CameraAravisNodelet::rosReconfigureCallback(Config &config, uint32_t level)
   const bool changed_trigger_source = (config_.TriggerSource != config.TriggerSource) || changed_trigger_mode;
   const bool changed_focus_pos = (config_.FocusPos != config.FocusPos);
   const bool changed_mtu = (config_.mtu != config.mtu);
-
+  
   if (changed_auto_master)
   {
     setAutoMaster(config.AutoMaster);
@@ -1172,23 +1179,143 @@ void CameraAravisNodelet::newBufferReadyCallback(ArvStream *p_stream, gpointer c
 void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodelet *p_can, std::string frame_id, size_t stream_id)
 {
   ArvBuffer *p_buffer = arv_stream_try_pop_buffer(p_stream);
-
+  
   // check if we risk to drop the next image because of not enough buffers left
   gint n_available_buffers;
   arv_stream_get_n_buffers(p_stream, &n_available_buffers, NULL);
+  //printf("n_available buffer : %d\n", n_available_buffers);
   if (n_available_buffers == 0)
   {
     p_can->p_buffer_pools_[stream_id]->allocateBuffers(1);
+    //p_can->p_buffer_pools_[stream_id].reset(new CameraBufferPool(p_can->p_streams_[stream_id], 4194304, 10));
   }
 
   if (p_buffer != NULL)
   {
+  size_t buffer_size;
+  const uint8_t *buffer_data = (const uint8_t*)arv_buffer_get_data(p_buffer, &buffer_size);
+  int length_bande = buffer_size/16;
+  uint8_t bande[10][length_bande];
+  float mean = 0;
+  uint8_t bande_corr[10][length_bande];
+  double CrosstalkCorrectionCoeff[100] = {0.9948, -0.0966, -0.0005, -0.0100, -0.0167, -0.0251, -0.0384, -0.1422, -0.2110, -0.0842, 0.0788, 1.0723, 0.0840, 0.0103, 0.0147, 0.0094, 0.0087, -0.0138, -0.0265, 0.0141, 0.0510, 0.1239, 0.9772, -0.0789, 0.0126, 0.0100, -0.0002, -0.0655, -0.0815, 0.0115, 0.0190, 0.0204, 0.0352, 1.0717, 0.1085, 0.0058, -0.0100, -0.0465, -0.0488, -0.0481, 0.0117, 0.0147, 0.0211, 0.1238, 0.9482, -0.0459, -0.0290, -0.0393, -0.0286, -0.0789, -0.0040, -0.0031, -0.0104, -0.0009, 0.0279, 1.1097, -0.0261, -0.0427, -0.0331, -0.0082, -0.0108, -0.0099, -0.0207, -0.0219, 0.0067, 0.0175, 1.1393, -0.0461, -0.0593, -0.0077, -0.0486, -0.0352, -0.0236, -0.0277, -0.0450, -0.0463, -0.0042, 1.4309, -0.0441, -0.1777, -0.0640, -0.0615, -0.0310, -0.0344, -0.0429, -0.0345, -0.0408, 0.0162, 1.5354, -0.3215, -0.0280, -0.0250, -0.0313, -0.0319, -0.0139, -0.0006, 0.0008, -0.0512, -0.0025, 1.7008};
+  
+  int k0 = 0;
+  int k1 = 0;
+  int k2 = 0;
+  int k3 = 0;
+  int k4 = 0;
+  int k5 = 0;
+  int k6 = 0;
+  int k7 = 0;
+  int k8 = 0;
+  int k9 = 0;
+  for (int i = 0; i<2048; i++){
+    for (int j = 0; j<2048; j++){
+      //Récupération des bandes
+      if(i%4==0 && j%4==3){
+        bande[0][k0] = (buffer_data[j+i*2048] + buffer_data[j+i*2048+2048+2046])/2;
+        k0++;
+      }
+      if(i%4==0 && j%4==2){
+        bande[2][k2] = (buffer_data[j+i*2048] + buffer_data[j+i*2048+2048+2046])/2;
+        k2++;
+      }
+      if(i%4==0 && j%4==1){
+        bande[1][k1] = (buffer_data[j+i*2048] + buffer_data[j+i*2048+2048+2050])/2;
+        k1++;
+      }
+      if(i%4==0 && j%4==0){
+        bande[3][k3] = (buffer_data[j+i*2048] + buffer_data[j+i*2048+2048+2050])/2;
+        k3++;
+      }
+      if(i%4==1 && j%4==3){
+        bande[7][k7] = (buffer_data[j+i*2048] + buffer_data[j+i*2048+2048+2050])/2;
+        k7++;
+      }
+      if(i%4==1 && j%4==2){
+        bande[4][k4] = buffer_data[j+i*2048];
+        k4++;
+      }
+      if(i%4==1 && j%4==1){
+        bande[8][k8] = (buffer_data[j+i*2048] + buffer_data[j+i*2048+2048+2050])/2;
+        k8++;
+      }
+      if(i%4==1 && j%4==0){
+        bande[6][k6] = buffer_data[j+i*2048];
+        k6++;
+      }
+      if(i%4==3 && j%4==2){
+        bande[9][k9] = buffer_data[j+i*2048];
+        k9++;
+      }
+      if(i%4==3 && j%4==0){
+        bande[5][k5] = buffer_data[j+i*2048];
+        k5++;
+      }
+      mean += buffer_data[j+i*2048];
+    }
+  }
+  mean /=(4194304.);
+
+  double expo = arv_device_get_float_feature_value(p_can->p_device_, "ExposureTime");
+  double framerate = arv_device_get_float_feature_value(p_can->p_device_, "AcquisitionFrameRate");
+  if(mean>50 && expo >100){    
+    
+    expo -= 2000;
+    arv_device_set_float_feature_value(p_can->p_device_, "ExposureTime", expo);
+    printf("ExposureTime : %f\n, ExpoMax : %f", expo, 1000000/framerate);
+  }
+  if(mean<40 && expo + 500 < 1000000/framerate){    
+    expo += 2000;
+    arv_device_set_float_feature_value(p_can->p_device_, "ExposureTime", expo);
+    printf("ExposureTime : %f\n, ExpoMax : %f", expo, 1000000/framerate);
+  }
+  
+
+  // crosstalk correction
+  for(int k=0; k<512*512;k++){
+    for(int n=0; n<10; n++){
+      int bc = bande[n][k];//*CrosstalkCorrectionCoeff[n*10]+bande[1][k]*CrosstalkCorrectionCoeff[n*10+1]+bande[2][k]*CrosstalkCorrectionCoeff[n*10+2]+bande[3][k]*CrosstalkCorrectionCoeff[n*10+3]+bande[4][k]*CrosstalkCorrectionCoeff[n*10+4]+bande[5][k]*CrosstalkCorrectionCoeff[n*10+5]+bande[6][k]*CrosstalkCorrectionCoeff[n*10+6]+bande[7][k]*CrosstalkCorrectionCoeff[n*10+7]+bande[8][k]*CrosstalkCorrectionCoeff[n*10+8]+bande[9][k]*CrosstalkCorrectionCoeff[n*10+9];
+      //int bc = bande[0][k]*CrosstalkCorrectionCoeff[n]+bande[1][k]*CrosstalkCorrectionCoeff[n+10]+bande[2][k]*CrosstalkCorrectionCoeff[n+20]+bande[3][k]*CrosstalkCorrectionCoeff[n+30]+bande[4][k]*CrosstalkCorrectionCoeff[n+40]+bande[5][k]*CrosstalkCorrectionCoeff[n+50]+bande[6][k]*CrosstalkCorrectionCoeff[n+60]+bande[7][k]*CrosstalkCorrectionCoeff[n+70]+bande[8][k]*CrosstalkCorrectionCoeff[n+80]+bande[9][k]*CrosstalkCorrectionCoeff[n+90];
+      
+      if(bc>255){
+        bande_corr[n][k] = 255;
+      }
+      else if(bc<0){
+        bande_corr[n][k] = 0;
+      }
+      else{
+        bande_corr[n][k] = bc;
+      }
+    }     
+  }
     if (arv_buffer_get_status(p_buffer) == ARV_BUFFER_STATUS_SUCCESS && p_can->p_buffer_pools_[stream_id]
         && p_can->cam_pubs_[stream_id].getNumSubscribers())
     {
       (p_can->n_buffers_)++;
       // get the image message which wraps around this buffer
-      sensor_msgs::ImagePtr msg_ptr = (*(p_can->p_buffer_pools_[stream_id]))[p_buffer];
+      ArvBuffer *buffer_bande0 = arv_buffer_new(length_bande , bande_corr[0]);
+      sensor_msgs::ImagePtr msg_ptr = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande0];
+      ArvBuffer *buffer_bande1 = arv_buffer_new(length_bande , bande_corr[1]);
+      sensor_msgs::ImagePtr msg_ptr1 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande1];
+      ArvBuffer *buffer_bande2 = arv_buffer_new(length_bande , bande_corr[2]);
+      sensor_msgs::ImagePtr msg_ptr2 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande2];
+      ArvBuffer *buffer_bande3 = arv_buffer_new(length_bande , bande_corr[3]);
+      sensor_msgs::ImagePtr msg_ptr3 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande3];
+      ArvBuffer *buffer_bande4 = arv_buffer_new(length_bande , bande_corr[4]);
+      sensor_msgs::ImagePtr msg_ptr4 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande4];
+      ArvBuffer *buffer_bande5 = arv_buffer_new(length_bande , bande_corr[5]);
+      sensor_msgs::ImagePtr msg_ptr5 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande5];
+      ArvBuffer *buffer_bande6 = arv_buffer_new(length_bande , bande_corr[6]);
+      sensor_msgs::ImagePtr msg_ptr6 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande6];
+      ArvBuffer *buffer_bande7 = arv_buffer_new(length_bande , bande_corr[7]);
+      sensor_msgs::ImagePtr msg_ptr7 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande7];
+      ArvBuffer *buffer_bande8 = arv_buffer_new(length_bande , bande_corr[8]);
+      sensor_msgs::ImagePtr msg_ptr8 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande8];
+      ArvBuffer *buffer_bande9 = arv_buffer_new(length_bande , bande_corr[9]);
+      sensor_msgs::ImagePtr msg_ptr9 = (*(p_can->p_buffer_pools_[stream_id]))[buffer_bande9];
+  
       // fill the meta information of image message
       // get acquisition time
       guint64 t;
@@ -1197,22 +1324,113 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
       else
         t = arv_buffer_get_system_timestamp(p_buffer);
       msg_ptr->header.stamp.fromNSec(t);
+      msg_ptr1->header.stamp.fromNSec(t);
+      msg_ptr2->header.stamp.fromNSec(t);
+      msg_ptr3->header.stamp.fromNSec(t);
+      msg_ptr4->header.stamp.fromNSec(t);
+      msg_ptr5->header.stamp.fromNSec(t);
+      msg_ptr6->header.stamp.fromNSec(t);
+      msg_ptr7->header.stamp.fromNSec(t);
+      msg_ptr8->header.stamp.fromNSec(t);
+      msg_ptr9->header.stamp.fromNSec(t);
       // get frame sequence number
       msg_ptr->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr1->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr2->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr3->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr4->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr5->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr6->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr7->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr8->header.seq = arv_buffer_get_frame_id(p_buffer);
+      msg_ptr9->header.seq = arv_buffer_get_frame_id(p_buffer);
+
       // fill other stream properties
       msg_ptr->header.frame_id = frame_id;
-      msg_ptr->width = p_can->roi_.width;
-      msg_ptr->height = p_can->roi_.height;
-      msg_ptr->encoding = p_can->sensors_[stream_id]->pixel_format;
-      msg_ptr->step = (msg_ptr->width * p_can->sensors_[stream_id]->n_bits_pixel)/8;
+      msg_ptr->width = p_can->roi_.width/4;
+      msg_ptr->height = p_can->roi_.height/4;
+      msg_ptr->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr1->header.frame_id = frame_id;
+      msg_ptr1->width = p_can->roi_.width/4;
+      msg_ptr1->height = p_can->roi_.height/4;
+      msg_ptr1->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr1->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr2->header.frame_id = frame_id;
+      msg_ptr2->width = p_can->roi_.width/4;
+      msg_ptr2->height = p_can->roi_.height/4;
+      msg_ptr2->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr2->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr3->header.frame_id = frame_id;
+      msg_ptr3->width = p_can->roi_.width/4;
+      msg_ptr3->height = p_can->roi_.height/4;
+      msg_ptr3->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr3->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr4->header.frame_id = frame_id;
+      msg_ptr4->width = p_can->roi_.width/4;
+      msg_ptr4->height = p_can->roi_.height/4;
+      msg_ptr4->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr4->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr5->header.frame_id = frame_id;
+      msg_ptr5->width = p_can->roi_.width/4;
+      msg_ptr5->height = p_can->roi_.height/4;
+      msg_ptr5->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr5->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr6->header.frame_id = frame_id;
+      msg_ptr6->width = p_can->roi_.width/4;
+      msg_ptr6->height = p_can->roi_.height/4;
+      msg_ptr6->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr6->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr7->header.frame_id = frame_id;
+      msg_ptr7->width = p_can->roi_.width/4;
+      msg_ptr7->height = p_can->roi_.height/4;
+      msg_ptr7->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr7->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr8->header.frame_id = frame_id;
+      msg_ptr8->width = p_can->roi_.width/4;
+      msg_ptr8->height = p_can->roi_.height/4;
+      msg_ptr8->encoding = p_can->sensors_[0]->pixel_format;
+      msg_ptr8->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
+
+      msg_ptr9->header.frame_id = frame_id;
+      msg_ptr9->width = p_can->roi_.width/4;
+      msg_ptr9->height = p_can->roi_.height/4;
+      msg_ptr9->encoding = p_can->sensors_[0]->pixel_format;
+      //std::cout << "pixel_format \n" << p_can->sensors_[0]->pixel_format);
+      msg_ptr9->step = (msg_ptr->width * p_can->sensors_[0]->n_bits_pixel)/8;
 
       // do the magic of conversion into a ROS format
       if (p_can->convert_formats[stream_id]) {
         sensor_msgs::ImagePtr cvt_msg_ptr = p_can->p_buffer_pools_[stream_id]->getRecyclableImg();
         p_can->convert_formats[stream_id](msg_ptr, cvt_msg_ptr);
         msg_ptr = cvt_msg_ptr;
-      }
-
+        p_can->convert_formats[stream_id](msg_ptr1, cvt_msg_ptr);
+        msg_ptr1 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr2, cvt_msg_ptr);
+        msg_ptr2 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr3, cvt_msg_ptr);
+        msg_ptr3 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr4, cvt_msg_ptr);
+        msg_ptr4 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr5, cvt_msg_ptr);
+        msg_ptr5 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr6, cvt_msg_ptr);
+        msg_ptr6 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr7, cvt_msg_ptr);
+        msg_ptr7 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr8, cvt_msg_ptr);
+        msg_ptr8 = cvt_msg_ptr;
+        p_can->convert_formats[stream_id](msg_ptr9, cvt_msg_ptr);
+        msg_ptr9 = cvt_msg_ptr;
+      }   
       // get current CameraInfo data
       if (!p_can->camera_infos_[stream_id]) {
         p_can->camera_infos_[stream_id].reset(new sensor_msgs::CameraInfo);
@@ -1230,19 +1448,33 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
         p_can->camera_infos_[stream_id]->width = p_can->roi_.width;
         p_can->camera_infos_[stream_id]->height = p_can->roi_.height;
       }
+      ROS_INFO("Publishing Image ");
+      p_can->cam_pubs_[0].publish(msg_ptr, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[1].publish(msg_ptr1, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[2].publish(msg_ptr2, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[3].publish(msg_ptr3, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[4].publish(msg_ptr4, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[5].publish(msg_ptr5, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[6].publish(msg_ptr6, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[7].publish(msg_ptr7, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[8].publish(msg_ptr8, p_can->camera_infos_[stream_id]);
+      p_can->cam_pubs_[9].publish(msg_ptr9, p_can->camera_infos_[stream_id]);
 
-
-      p_can->cam_pubs_[stream_id].publish(msg_ptr, p_can->camera_infos_[stream_id]);
-
-      if (p_can->pub_ext_camera_info_) {
+      ExtendedCameraInfo extended_camera_info_msg;
+      p_can->extended_camera_info_mutex_.lock();
+      extended_camera_info_msg.camera_info = *(p_can->camera_infos_[stream_id]);
+      p_can->fillExtendedCameraInfoMessage(extended_camera_info_msg, t);
+      p_can->extended_camera_info_mutex_.unlock();
+      p_can->extended_camera_info_pubs_[stream_id].publish(extended_camera_info_msg);
+      /*if (p_can->pub_ext_camera_info_) {
         ExtendedCameraInfo extended_camera_info_msg;
         p_can->extended_camera_info_mutex_.lock();
-        arv_camera_gv_select_stream_channel(p_can->p_camera_, stream_id);
+        //arv_camera_gv_select_stream_channel(p_can->p_camera_, stream_id);
         extended_camera_info_msg.camera_info = *(p_can->camera_infos_[stream_id]);
         p_can->fillExtendedCameraInfoMessage(extended_camera_info_msg);
         p_can->extended_camera_info_mutex_.unlock();
         p_can->extended_camera_info_pubs_[stream_id].publish(extended_camera_info_msg);
-      }
+      }*/
 
       // check PTP status, camera cannot recover from "Faulty" by itself
       if (p_can->use_ptp_stamp_)
@@ -1253,11 +1485,14 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
       if (arv_buffer_get_status(p_buffer) != ARV_BUFFER_STATUS_SUCCESS) {
         ROS_WARN("(%s) Frame error: %s", frame_id.c_str(), szBufferStatusFromInt[arv_buffer_get_status(p_buffer)]);
       }
-      arv_stream_push_buffer(p_stream, p_buffer);
+      //arv_stream_push_buffer(p_stream, p_buffer);
     }
+    arv_stream_push_buffer(p_stream, p_buffer);
   }
-
+  
   // publish current lighting settings if this camera is configured as master
+  p_can->syncAutoParameters();
+  p_can->auto_pub_.publish(p_can->auto_params_);
   if (p_can->config_.AutoMaster)
   {
     p_can->syncAutoParameters();
@@ -1265,7 +1500,7 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
   }
 }
 
-void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg)
+void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg, guint64 t)
 {
   const char *vendor_name = arv_camera_get_vendor_name(p_camera_);
 
@@ -1339,6 +1574,17 @@ void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg)
   {
     msg.temperature = arv_device_get_float_feature_value(p_device_, "DeviceTemperature");
   }
+
+  if (strcmp("Basler", vendor_name) == 0) {
+    msg.frame_rate = static_cast<float>(arv_device_get_float_feature_value(p_device_, "AcquisitionFrameRate"));
+  }
+  else if (implemented_features_["AcquisitionFrameRate"])
+  {
+    msg.frame_rate = arv_device_get_float_feature_value(p_device_, "AcquisitionFrameRate");
+  }
+ 
+  msg.stamp.fromNSec(t);
+  
 
 }
 

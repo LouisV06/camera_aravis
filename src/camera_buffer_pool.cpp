@@ -58,7 +58,8 @@ sensor_msgs::ImagePtr CameraBufferPool::operator[](ArvBuffer *buffer)
     // get address and size
     size_t buffer_size;
     const uint8_t *buffer_data = (const uint8_t*)arv_buffer_get_data(buffer, &buffer_size);
-
+    //printf("taille buffer : %ld\n", buffer_size);
+    
     // find corresponding ImagePtr wrapper
     std::map<const uint8_t*, sensor_msgs::ImagePtr>::iterator iter = available_img_buffers_.find(buffer_data);
     if (iter != available_img_buffers_.end())
@@ -69,7 +70,7 @@ sensor_msgs::ImagePtr CameraBufferPool::operator[](ArvBuffer *buffer)
     }
     else
     {
-      ROS_WARN("Could not find available image in pool corresponding to buffer.");
+      //ROS_WARN("Could not find available image in pool corresponding to buffer.");
       img_ptr.reset(new sensor_msgs::Image);
       img_ptr->data.resize(buffer_size);
       memcpy(img_ptr->data.data(), buffer_data, buffer_size);
@@ -90,13 +91,14 @@ void CameraBufferPool::allocateBuffers(size_t n)
       sensor_msgs::Image *p_img = new sensor_msgs::Image;
       p_img->data.resize(payload_size_bytes_);
       ArvBuffer *buffer = arv_buffer_new(payload_size_bytes_, p_img->data.data());
-      sensor_msgs::ImagePtr img_ptr(
-          p_img, boost::bind(&CameraBufferPool::reclaim, this->weak_from_this(), boost::placeholders::_1));
+      sensor_msgs::ImagePtr img_ptr(p_img, boost::bind(&CameraBufferPool::reclaim, this->weak_from_this(), boost::placeholders::_1));
       available_img_buffers_.emplace(p_img->data.data(), img_ptr);
       arv_stream_push_buffer(stream_, buffer);
       ++n_buffers_;
     }
     ROS_INFO_STREAM("Allocated " << n << " image buffers of size " << payload_size_bytes_);
+    
+    
   }
   else
   {

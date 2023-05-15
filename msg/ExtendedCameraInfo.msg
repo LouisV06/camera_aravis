@@ -4,6 +4,7 @@
 sensor_msgs/CameraInfo camera_info # contains a header and calibration parameters
 
 float64 exposure_time # in microseconds
+float64 frame_rate # in hertz
 float64 gain # unit is device-specific
 float64 black_level # unit is device-specific
 
@@ -12,3 +13,5 @@ float64 white_balance_green # unit is device-specific
 float64 white_balance_blue # unit is device-specific
 
 float64 temperature # in degrees Celsius
+
+time stamp

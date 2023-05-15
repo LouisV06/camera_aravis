@@ -119,7 +119,7 @@ protected:
   void setAutoSlave(bool value);
 
   void setExtendedCameraInfo(std::string channel_name, size_t stream_id);
-  void fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg);
+  void fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg, guint64 t);
 
   // Extra stream options for GigEVision streams.
   void tuneGvStream(ArvGvStream *p_stream);
@@ -242,6 +242,10 @@ protected:
   {
     CameraAravisNodelet* can;
     size_t stream_id;
+  };
+  struct uint10_t{
+    uint16_t value : 10;
+    uint16_t _ :6;
   };
 };
 
