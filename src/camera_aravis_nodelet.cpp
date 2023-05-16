@@ -271,7 +271,7 @@ void CameraAravisNodelet::onInit()
     arv_camera_gv_select_stream_channel(p_camera_,i);
     std::string source_selector = "Source" + std::to_string(i);
     arv_device_set_string_feature_value(p_device_, "SourceSelector", source_selector.c_str());
-    arv_device_set_string_feature_value(p_device_, "PixelFormat", pixel_formats[i].c_str());
+    arv_device_set_string_feature_value(p_device_, "PixelFormat", "Mono12p");
     sensors_[i]->pixel_format = std::string(arv_device_get_string_feature_value(p_device_, "PixelFormat"));
     const auto sensor_iter = CONVERSIONS_DICTIONARY.find(sensors_[i]->pixel_format);
     if (sensor_iter!=CONVERSIONS_DICTIONARY.end()) {
