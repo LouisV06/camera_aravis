@@ -199,7 +199,7 @@ void CameraAravisNodelet::onInit()
   arv_camera_get_exposure_time_bounds(p_camera_, &config_min_.ExposureTime, &config_max_.ExposureTime);
   arv_camera_get_gain_bounds(p_camera_, &config_min_.Gain, &config_max_.Gain);
   for(int i = 0; i < num_streams_; i++) {
-    arv_camera_gv_select_stream_channel(p_camera_,i);
+    //arv_camera_gv_select_stream_channel(p_camera_,i);
     arv_camera_get_sensor_size(p_camera_, &sensors_[i]->width, &sensors_[i]->height);
   }
   arv_camera_get_width_bounds(p_camera_, &roi_.width_min, &roi_.width_max);
@@ -219,7 +219,7 @@ void CameraAravisNodelet::onInit()
   }
 
   for(int i = 0; i < num_streams_; i++) {
-    arv_camera_gv_select_stream_channel(p_camera_,i);
+    //arv_camera_gv_select_stream_channel(p_camera_,i);
 
     // Initial camera settings.
     if (implemented_features_["ExposureTime"])
@@ -268,7 +268,7 @@ void CameraAravisNodelet::onInit()
 
   // get pixel format name and translate into corresponding ROS name
   for(int i = 0; i < num_streams_; i++) {
-    arv_camera_gv_select_stream_channel(p_camera_,i);
+    //arv_camera_gv_select_stream_channel(p_camera_,i);
     std::string source_selector = "Source" + std::to_string(i);
     arv_device_set_string_feature_value(p_device_, "SourceSelector", source_selector.c_str());
     arv_device_set_string_feature_value(p_device_, "PixelFormat", "Mono12p");
@@ -449,13 +449,13 @@ void CameraAravisNodelet::spawnStream()
 
   for(int i = 0; i < num_streams_; i++) {
     while (spawning_) {
-      arv_camera_gv_select_stream_channel(p_camera_, i);
+      //arv_camera_gv_select_stream_channel(p_camera_, i);
       p_streams_[i] = arv_camera_create_stream(p_camera_, NULL, NULL);
 
       if (p_streams_[i])
       {
         // Load up some buffers.
-        arv_camera_gv_select_stream_channel(p_camera_, i);
+        //arv_camera_gv_select_stream_channel(p_camera_, i);
         const gint n_bytes_payload_stream_ = arv_camera_get_payload(p_camera_);
 
         p_buffer_pools_[i].reset(new CameraBufferPool(p_streams_[i], n_bytes_payload_stream_, 10));
@@ -1234,15 +1234,15 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
 
       p_can->cam_pubs_[stream_id].publish(msg_ptr, p_can->camera_infos_[stream_id]);
 
-      if (p_can->pub_ext_camera_info_) {
-        ExtendedCameraInfo extended_camera_info_msg;
-        p_can->extended_camera_info_mutex_.lock();
-        arv_camera_gv_select_stream_channel(p_can->p_camera_, stream_id);
-        extended_camera_info_msg.camera_info = *(p_can->camera_infos_[stream_id]);
-        p_can->fillExtendedCameraInfoMessage(extended_camera_info_msg);
-        p_can->extended_camera_info_mutex_.unlock();
-        p_can->extended_camera_info_pubs_[stream_id].publish(extended_camera_info_msg);
-      }
+      
+      ExtendedCameraInfo extended_camera_info_msg;
+      p_can->extended_camera_info_mutex_.lock();
+      //arv_camera_gv_select_stream_channel(p_can->p_camera_, stream_id);
+      extended_camera_info_msg.camera_info = *(p_can->camera_infos_[stream_id]);
+      p_can->fillExtendedCameraInfoMessage(extended_camera_info_msg);
+      p_can->extended_camera_info_mutex_.unlock();
+      p_can->extended_camera_info_pubs_[stream_id].publish(extended_camera_info_msg);
+    
 
       // check PTP status, camera cannot recover from "Faulty" by itself
       if (p_can->use_ptp_stamp_)
@@ -1268,6 +1268,7 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
 void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg)
 {
   const char *vendor_name = arv_camera_get_vendor_name(p_camera_);
+  printf("CC\n");
 
   if (strcmp("Basler", vendor_name) == 0) {
     msg.exposure_time = arv_device_get_float_feature_value(p_device_, "ExposureTimeAbs");
