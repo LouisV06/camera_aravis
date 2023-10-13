@@ -865,7 +865,8 @@ void CameraAravisNodelet::setExtendedCameraInfo(std::string channel_name, size_t
   }
   else
   {
-    extended_camera_info_pubs_[stream_id].shutdown();
+    extended_camera_info_pubs_[stream_id]  = getNodeHandle().advertise<ExtendedCameraInfo>(ros::names::remap("extended_camera_info"), 1, true);
+    //extended_camera_info_pubs_[stream_id].shutdown();
   }
 }
 
@@ -1183,6 +1184,15 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
 
   if (p_buffer != NULL)
   {
+    size_t buffer_size;
+    const uint8_t *buffer_data = (const uint8_t*)arv_buffer_get_data(p_buffer, &buffer_size);
+    float mean = 0;
+    for (int i = 0; i<2048; i++){
+      for (int j = 0; j<2048; j++){
+        mean +=buffer_data[j+i*2048];
+      }
+    }
+    printf("mean = %f\n", mean/(2048*2048));
     if (arv_buffer_get_status(p_buffer) == ARV_BUFFER_STATUS_SUCCESS && p_can->p_buffer_pools_[stream_id]
         && p_can->cam_pubs_[stream_id].getNumSubscribers())
     {
@@ -1231,7 +1241,7 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
         p_can->camera_infos_[stream_id]->height = p_can->roi_.height;
       }
 
-
+      ROS_INFO("Publishing Image ");
       p_can->cam_pubs_[stream_id].publish(msg_ptr, p_can->camera_infos_[stream_id]);
 
       
@@ -1239,7 +1249,7 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
       p_can->extended_camera_info_mutex_.lock();
       //arv_camera_gv_select_stream_channel(p_can->p_camera_, stream_id);
       extended_camera_info_msg.camera_info = *(p_can->camera_infos_[stream_id]);
-      p_can->fillExtendedCameraInfoMessage(extended_camera_info_msg);
+      p_can->fillExtendedCameraInfoMessage(extended_camera_info_msg, t);
       p_can->extended_camera_info_mutex_.unlock();
       p_can->extended_camera_info_pubs_[stream_id].publish(extended_camera_info_msg);
     
@@ -1258,17 +1268,13 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
   }
 
   // publish current lighting settings if this camera is configured as master
-  if (p_can->config_.AutoMaster)
-  {
-    p_can->syncAutoParameters();
-    p_can->auto_pub_.publish(p_can->auto_params_);
-  }
+  p_can->syncAutoParameters();
+  p_can->auto_pub_.publish(p_can->auto_params_);
 }
 
-void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg)
+void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg, guint64 t)
 {
   const char *vendor_name = arv_camera_get_vendor_name(p_camera_);
-  printf("CC\n");
 
   if (strcmp("Basler", vendor_name) == 0) {
     msg.exposure_time = arv_device_get_float_feature_value(p_device_, "ExposureTimeAbs");
@@ -1340,6 +1346,16 @@ void CameraAravisNodelet::fillExtendedCameraInfoMessage(ExtendedCameraInfo &msg)
   {
     msg.temperature = arv_device_get_float_feature_value(p_device_, "DeviceTemperature");
   }
+  
+  if (strcmp("Basler", vendor_name) == 0) {
+    msg.frame_rate = static_cast<float>(arv_device_get_float_feature_value(p_device_, "AcquisitionFrameRate"));
+  }
+  else if (implemented_features_["AcquisitionFrameRate"])
+  {
+    msg.frame_rate = arv_device_get_float_feature_value(p_device_, "AcquisitionFrameRate");
+  }
+
+  msg.stamp.fromNSec(t);
 
 }
 
