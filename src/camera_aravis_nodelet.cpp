@@ -320,7 +320,6 @@ void CameraAravisNodelet::onInit()
     }
 
     ros::Duration(2.0).sleep();
-
     // get current state of camera for config_
     arv_camera_get_region(p_camera_, &roi_.x, &roi_.y, &roi_.width, &roi_.height);
     config_.AcquisitionMode =
