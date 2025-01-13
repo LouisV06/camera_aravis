@@ -1186,13 +1186,37 @@ void CameraAravisNodelet::newBufferReady(ArvStream *p_stream, CameraAravisNodele
   {
     size_t buffer_size;
     const uint8_t *buffer_data = (const uint8_t*)arv_buffer_get_data(p_buffer, &buffer_size);
-    float mean = 0;
+    float mean = 0.0;
     for (int i = 0; i<2048; i++){
       for (int j = 0; j<2048; j++){
         mean +=buffer_data[j+i*2048];
       }
     }
-    printf("mean = %f\n", mean/(2048*2048));
+    mean = mean/(2048.0*2048.0);
+    printf("mean = %f\n", mean);
+    float target_mean = 110.0; // Valeur cible de la moyenne (par exemple, 50% d'intensité)
+    float tolerance = 5.0;  // Tolérance autour de la cible (par exemple, ±5%)
+
+    if (std::abs(mean - target_mean) > tolerance) {
+        // Lecture de l'exposition actuelle
+        gint64 current_exposure = arv_camera_get_exposure_time(p_can->p_camera_);
+        gint64 new_exposure;
+        if (mean < target_mean) {
+            // Sous-exposition : augmenter le temps d'exposition
+            new_exposure = current_exposure * 1.1; 
+        } else {
+            // Surexposition : diminuer le temps d'exposition
+            new_exposure = current_exposure * 0.9; 
+        }
+
+        // Appliquer la nouvelle exposition
+        new_exposure = std::max(static_cast<double>(p_can->config_min_.ExposureTime),
+        std::min(static_cast<double>(new_exposure), static_cast<double>(p_can->config_max_.ExposureTime)));
+
+        arv_camera_set_exposure_time(p_can->p_camera_, new_exposure);
+        printf("Adjusted exposure time: %ld\n", new_exposure);
+    }
+
     if (arv_buffer_get_status(p_buffer) == ARV_BUFFER_STATUS_SUCCESS && p_can->p_buffer_pools_[stream_id]
         && p_can->cam_pubs_[stream_id].getNumSubscribers())
     {
