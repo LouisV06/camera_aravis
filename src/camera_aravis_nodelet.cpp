@@ -1439,7 +1439,6 @@ void CameraAravisNodelet::newBufferReady(ArvStream* p_stream, CameraAravisNodele
         printf("mean = %f\n", mean);
         float target_mean = 110.0; // Valeur cible de la moyenne (par exemple, 50% d'intensité)
         float tolerance = 5.0;  // Tolérance autour de la cible (par exemple, ±5%)
-
         if (std::abs(mean - target_mean) > tolerance) {
             // Lecture de l'exposition actuelle
             gint64 current_exposure = arv_camera_get_exposure_time(p_can->p_camera_);
