@@ -5,14 +5,15 @@
   <arg name="manager"                  value="/$(arg manager_name)"/>
   <arg name="manager_threads"          default="4"/>
 
-  <arg name="sensor_name"              default="aravis_cam"/>
+  <arg name="sensor_name"              default="cam_aravis"/>
   <arg name="serial_no"                default=""/>
   <arg name="camera_info_url"          default=""/>
 
-  <arg name="pixel_format"             default="BGR8"/>
-  <arg name="width"                    default="640"/>
-  <arg name="height"                   default="480"/>
-  <arg name="fps"                      default="25"/>
+  <arg name="pixel_format"             default="Mono12p"/>
+  <arg name="width"                    default="2048"/>
+  <arg name="height"                   default="2048"/>
+  <arg name="fps"                      default="2"/>
+  <arg name="exposure_time"            default="490000"/>
 
   <arg name="verbose"                  default="false"/>
 
@@ -38,6 +39,7 @@
       <param name="Width"                value="$(arg width)"/>
       <param name="Height"               value="$(arg height)"/>
       <param name="AcquisitionFrameRate" type="double" value="$(arg fps)"/>
+      
 
       <param name="Gamma"                value="0.41"/>
       <param name="Gain"                 value="0.0"/>
@@ -45,14 +47,12 @@
       <param name="ExposureAuto"         value="Continuous"/>
       <param name="GainAuto"             value="Continuous"/>
       <param name="BalanceWhiteAuto"     value="Continuous"/>
+      
+      <!-- Added ExposureTime -->
+      <param name="ExposureTime"         value="490000"/>
 
     </node>
 
-    <!-- Debayer the image -->
-    <node pkg="nodelet" type="nodelet" name="debayer"
-          args="load image_proc/debayer $(arg manager)">
-      <param name="debayer" value="0"/>
-    </node>
 
   </group>
 
